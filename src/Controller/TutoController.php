@@ -34,6 +34,28 @@ class TutoController extends AbstractController
         return new JsonResponse($data);
     }
 
+    #[Route('/tuto/{id}', name: 'find_tuto')]
+    public function fetchOne(EntityManagerInterface $entityManager, int $id): JsonResponse
+    {
+        $tuto = $entityManager->getRepository(Tuto::class)->find($id);
+        if(!$tuto){
+            throw $this->createNotFoundException('Tuto not found');
+        }
+
+        $data = [
+            'id' => $tuto->getId(),
+            'name' => $tuto->getName(),
+            'subtitle' => $tuto->getSubtitle(),
+            'slug' => $tuto->getSlug(),
+            'description' => $tuto->getDescription(),
+            'image' => $tuto->getImage(),
+            'video' => $tuto->getVideo(),
+            'link' => $tuto->getLink(),
+        ];
+    
+        return new JsonResponse($data);
+    }
+
     #[Route('/tuto/add', name: 'create_tuto')]
     public function createTuto(EntityManagerInterface $entityManager): JsonResponse
     {
