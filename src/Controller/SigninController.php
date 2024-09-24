@@ -26,6 +26,17 @@ class SigninController extends AbstractController
         $user->setEmail($data['email'] ?? '');
         $user->setPassword($data['password'] ?? '');
 
+        // Determine role: simple user by default, admin only if explicitly set
+        $role = $data['role'] ?? 'ROLE_USER';
+        
+        if (!in_array($role, ['ROLE_USER', 'ROLE_ADMIN'])) {
+            return new JsonResponse(['message' => 'Invalid role specified'], 400);
+        }
+
+        // Set the role
+        $user->setRoles([$role]);
+
+
         //Validation
         $errors = $validator->validate($user);
         if (count($errors) > 0) {
