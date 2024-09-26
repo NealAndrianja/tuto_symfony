@@ -25,6 +25,8 @@ security:
                 username_path: email
                 password_path: password
             stateless: true
+            logout:
+                path: /logout
         # api_login:
         #     pattern: ^/api/login
         #     stateless: true
