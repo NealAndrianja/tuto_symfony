@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\ApiToken;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,15 +28,22 @@ class ApiLoginController extends AbstractController
         // Find user by email
         $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
 
+
         if (!$user || !$passwordHasher->isPasswordValid($user, $password)) {
             return new JsonResponse(['message' => 'Invalid credentials'], 400);
         }
 
         // Generate API token
         $token = bin2hex(random_bytes(32));
-        $user->setApiToken($token);
+        $apiToken = new ApiToken();
+        $apiToken->setTokenString($token);
+        $apiToken->setUser($user);
+        $apiToken->setExpiration(2000);
+
+        $user->addApiToken($apiToken);
 
         // Save the token in the database
+        $entityManager->persist($apiToken);
         $entityManager->persist($user);
         $entityManager->flush();
 
@@ -58,7 +66,12 @@ class ApiLoginController extends AbstractController
 
         // Generate new API token
         $token = bin2hex(random_bytes(32));
-        $user->setApiToken($token);
+        $apiToken = new ApiToken();
+        $apiToken->setTokenString($token);
+        $apiToken->setUser($user);
+        $apiToken->setExpiration(2000);
+
+        $user->addApiToken($apiToken);
 
         // Save the token in the database
         $entityManager->persist($user);
