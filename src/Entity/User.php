@@ -44,9 +44,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: ApiToken::class, mappedBy: 'user')]
     private Collection $apiTokens;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $customerCode = null;
+
+    /**
+     * @var Collection<int, SmallPackage>
+     */
+    #[ORM\OneToMany(targetEntity: SmallPackage::class, mappedBy: 'customer')]
+    private Collection $smallPackages;
+
     public function __construct()
     {
         $this->apiTokens = new ArrayCollection();
+        $this->smallPackages = new ArrayCollection();
     }
 
 
@@ -149,6 +159,48 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($apiToken->getUser() === $this) {
                 $apiToken->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getCustomerCode(): ?string
+    {
+        return $this->customerCode;
+    }
+
+    public function setCustomerCode(?string $customerCode): static
+    {
+        $this->customerCode = $customerCode;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, SmallPackage>
+     */
+    public function getSmallPackages(): Collection
+    {
+        return $this->smallPackages;
+    }
+
+    public function addSmallPackage(SmallPackage $smallPackage): static
+    {
+        if (!$this->smallPackages->contains($smallPackage)) {
+            $this->smallPackages->add($smallPackage);
+            $smallPackage->setCustomer($this);
+        }
+
+        return $this;
+    }
+
+    public function removeSmallPackage(SmallPackage $smallPackage): static
+    {
+        if ($this->smallPackages->removeElement($smallPackage)) {
+            // set the owning side to null (unless already changed)
+            if ($smallPackage->getCustomer() === $this) {
+                $smallPackage->setCustomer(null);
             }
         }
 
