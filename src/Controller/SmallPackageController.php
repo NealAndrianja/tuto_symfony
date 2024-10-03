@@ -129,23 +129,96 @@ class SmallPackageController extends AbstractController
     }
 
     #[Route('/small/packages/user', name: 'user_small_packages', methods: ['GET'])]
-    public function getUserSmallPackages(Request $request, EntityManagerInterface $entityManager): JsonResponse
-    {
-        // Get the user from the token in the request header
-        $user = $this->getUserFromToken($request, $entityManager);
+public function getUserSmallPackages(Request $request, EntityManagerInterface $entityManager): JsonResponse
+{
+    // Get the user from the token in the request header
+    $user = $this->getUserFromToken($request, $entityManager);
 
-        if (!$user) {
-            return new JsonResponse(['message' => 'Unauthorized'], 401);
+    if (!$user) {
+        return new JsonResponse(['message' => 'Unauthorized'], 401);
+    }
+
+    // Prepare the base query builder for SmallPackage
+    $queryBuilder = $entityManager->getRepository(SmallPackage::class)->createQueryBuilder('sp');
+
+    // If the user is an admin, allow filtering by multiple parameters
+    if (in_array('ROLE_ADMIN', $user->getRoles())) {
+        // Filtering by customer code if provided
+        $customerCode = $request->query->get('customer_code');
+        if ($customerCode) {
+            $customer = $entityManager->getRepository(User::class)->findOneBy(['customerCode' => $customerCode]);
+            if ($customer) {
+                $queryBuilder->andWhere('sp.customer = :customer')
+                             ->setParameter('customer', $customer);
+            } else {
+                return new JsonResponse(['message' => 'Customer not found'], 404);
+            }
         }
 
+        // Filtering by status if provided
+        $status = $request->query->get('status');
+        if ($status) {
+            $queryBuilder->andWhere('sp.status = :status')
+                         ->setParameter('status', $status);
+        }
 
+        // Filtering by delivery mode if provided
+        $deliveryMode = $request->query->get('delivery_mode');
+        if ($deliveryMode) {
+            $queryBuilder->andWhere('sp.deliveryMode = :deliveryMode')
+                         ->setParameter('deliveryMode', $deliveryMode);
+        }
+
+        // Filtering by period if provided (e.g., last week, last 3 days, etc.)
+        $period = $request->query->get('period');
+        if ($period) {
+            $date = new \DateTime();
+            switch ($period) {
+                case 'last_week':
+                    $date->modify('-1 week');
+                    break;
+                case 'last_3_days':
+                    $date->modify('-3 days');
+                    break;
+                case 'last_15_days':
+                    $date->modify('-15 days');
+                    break;
+                case 'last_month':
+                    $date->modify('-1 month');
+                    break;
+                default:
+                    return new JsonResponse(['message' => 'Invalid period'], 400);
+            }
+            $queryBuilder->andWhere('sp.createdAt >= :date')
+                         ->setParameter('date', $date);
+        }
+
+    } else if (in_array('ROLE_USER', $user->getRoles())) {
         // If the user is not an admin, get only their small packages
-        if (in_array('ROLE_USER', $user->getRoles())) {
-            $smallPackages = $entityManager->getRepository(SmallPackage::class)->findBy(['customer' => $user]);
+        $queryBuilder->andWhere('sp.customer = :customer')
+                     ->setParameter('customer', $user);
 
-            return $this->formatSmallPackageResponse($smallPackages);
+        // Filtering by status if provided
+        $status = $request->query->get('status');
+        if ($status) {
+            $queryBuilder->andWhere('sp.status = :status')
+                         ->setParameter('status', $status);
         }
 
+        // Filtering by delivery mode if provided
+        $deliveryMode = $request->query->get('delivery_mode');
+        if ($deliveryMode) {
+            $queryBuilder->andWhere('sp.deliveryMode = :deliveryMode')
+                         ->setParameter('deliveryMode', $deliveryMode);
+        }
+    } else {
         return new JsonResponse(['message' => 'Access denied'], 403);
     }
+
+    // Get the results
+    $smallPackages = $queryBuilder->getQuery()->getResult();
+
+    return $this->formatSmallPackageResponse($smallPackages);
+}
+
 }
